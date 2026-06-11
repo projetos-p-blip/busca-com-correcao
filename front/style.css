@@ -1,0 +1,120 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f0f4f9;
+    display: flex;
+    justify-content: center;
+    padding-top: 50px;
+}
+
+.search-container {
+    width: 100%;
+    max-width: 600px;
+    background: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+h2 {
+    color: #1a365d;
+    margin-bottom: 8px;
+}
+
+p {
+    color: #627d98;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+#inputBusca {
+    width: 100%;
+    padding: 15px 45px 15px 20px;
+    font-size: 16px;
+    border: 2px solid #cbd5e1;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#inputBusca:focus {
+    border-color: #3182ce;
+}
+
+/* Ícone de carregando (Spinner) */
+.loader {
+    position: absolute;
+    right: 15px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3182ce;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Lista de Resultados */
+#listaProdutos {
+    list-style: none;
+    margin-top: 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: white;
+}
+
+#listaProdutos li {
+    padding: 15px 20px;
+    border-bottom: 1px solid #edf2f7;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#listaProdutos li:last-child {
+    border-bottom: none;
+}
+
+#listaProdutos li:hover {
+    background-color: #ebf8ff;
+}
+
+.med-title {
+    font-weight: 600;
+    color: #2d3748;
+    display: block;
+}
+
+.med-detalhes {
+    font-size: 12px;
+    color: #718096;
+    margin-top: 4px;
+}
+
+/* Classes Utilitárias */
+.hidden {
+    display: none !important;
+}
+
+.mensagem {
+    margin-top: 15px;
+    color: #e53e3e;
+    text-align: center;
+    font-size: 14px;
+}

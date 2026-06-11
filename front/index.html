@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador de Medicamentos ANVISA</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="search-container">
+        <h2>Busca Inteligente de Medicamentos</h2>
+        <p>Digite o nome do remédio ou princípio ativo (ex: Dipirona, Paracetamol)</p>
+        
+        <div class="input-wrapper">
+            <input type="text" id="inputBusca" placeholder="Comece a digitar para pesquisar..." autocomplete="off">
+            <div id="loader" class="loader hidden"></div>
+        </div>
+
+        <ul id="listaProdutos" class="hidden">
+            </ul>
+        
+        <div id="mensagemErro" class="mensagem hidden">Nenhum medicamento encontrado.</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
