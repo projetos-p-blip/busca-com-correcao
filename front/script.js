@@ -1,91 +1,93 @@
 let tempoEspera;
-let todosProdutos = []; // Vai guardar a lista completa de remédios carregada do JSON
+let fuse;
+let produtosAtuais = [];
 
 const inputBusca = document.getElementById('inputBusca');
 const listaProdutos = document.getElementById('listaProdutos');
 const loader = document.getElementById('loader');
 const mensagemErro = document.getElementById('mensagemErro');
 
-let fuse;
+const OPENFDA_URL = 'https://api.fda.gov/drug/label.json';
+const LIMITE_RESULTADOS = 20;
 
-// 1. CARREGAR OS DADOS DO REMEDIOS.JSON assim que a página abre
-fetch('../remedios.json')
-    .then(response => {
-        if (!response.ok) throw new Error('Não foi possível carregar o arquivo JSON.');
-        return response.json();
-    })
-    .then(dados => {
-        todosProdutos = dados;
-
-        const opcoesFuse = {
-            keys: ['nome', 'principioAtivo'],
-            threshold: 0.35,
-            minMatchCharLength: 2,
-            includeScore: true
-        };
-
-        fuse = new Fuse(todosProdutos, opcoesFuse);
-    })
-    .catch(erro => {
-        console.error('Erro ao inicializar banco de dados local:', erro);
-        mensagemErro.textContent = 'Ocorreu um erro ao carregar os dados.';
-        mensagemErro.classList.remove('hidden');
-    });
-
-
-// 2. SISTEMA DE DEBOUNCE (Monitora o teclado do usuário)
-inputBusca.addEventListener('keyup', (evento) => {
-    clearTimeout(tempoEspera); // Cancela o cronômetro anterior se o usuário continuar digitando
+inputBusca.addEventListener('input', (evento) => {
+    clearTimeout(tempoEspera);
 
     const termoDigitado = evento.target.value.trim();
 
-    // Se o usuário apagar o campo de texto, limpa a tela
     if (termoDigitado.length === 0) {
         esconderElementos();
         return;
     }
 
-    // Só faz a busca se tiver pelo menos 3 caracteres digitados
-    if (termoDigitado.length >= 3) {
-        loader.classList.remove('hidden');
-        mensagemErro.classList.add('hidden');
+    loader.classList.remove('hidden');
+    mensagemErro.classList.add('hidden');
 
-        // Aguarda 300ms após a última tecla para processar a busca
-        tempoEspera = setTimeout(() => {
-            executarBuscaFuzzy(termoDigitado);
-        }, 300);
-    }
+    tempoEspera = setTimeout(() => {
+        buscarOpenFda(termoDigitado);
+    }, 300);
 });
 
+async function buscarOpenFda(termo) {
+    const query = `openfda.brand_name:\"${termo}\" OR openfda.generic_name:\"${termo}\" OR openfda.manufacturer_name:\"${termo}\"`;
+    const url = `${OPENFDA_URL}?search=${encodeURIComponent(query)}&limit=${LIMITE_RESULTADOS}`;
 
-// 3. BUSCA FUZZY COM FUSE.JS
-function executarBuscaFuzzy(termo) {
-    if (!fuse) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Erro ao buscar dados do openFDA.');
+
+        const dados = await response.json();
+        const resultados = Array.isArray(dados.results) ? dados.results : [];
+
+        produtosAtuais = resultados
+            .map(item => ({
+                nome: getNome(item),
+                principioAtivo: getPrincipioAtivo(item),
+                razaoSocial: getFabricante(item),
+                raw: item
+            }))
+            .filter(produto => produto.nome || produto.principioAtivo);
+
+        if (!produtosAtuais.length) {
+            loader.classList.add('hidden');
+            mostrarErro();
+            return;
+        }
+
+        fuse = new Fuse(produtosAtuais, {
+            keys: ['nome', 'principioAtivo', 'razaoSocial'],
+            threshold: 0.4,
+            minMatchCharLength: 2,
+            includeScore: true
+        });
+
+        executarBuscaFuzzy(termo);
+    } catch (erro) {
+        console.error('Erro ao buscar openFDA:', erro);
         loader.classList.add('hidden');
+        mensagemErro.textContent = 'Não foi possível buscar os dados. Tente novamente.';
+        mensagemErro.classList.remove('hidden');
+    }
+}
+
+function executarBuscaFuzzy(termo) {
+    if (!fuse || !produtosAtuais.length) {
+        loader.classList.add('hidden');
+        mostrarErro();
         return;
     }
 
-    const resultados = fuse.search(termo);
-    const remediosFiltrados = resultados.map(resultado => resultado.item);
-
-    // Se não encontrar nada com fuzzy matching, tenta uma busca simples por includes.
-    if (!remediosFiltrados.length) {
-        const termoMinusculo = termo.toLowerCase();
-        remediosFiltrados.push(...todosProdutos.filter(remedio => {
-            const nome = remedio.nome.toLowerCase();
-            const principio = remedio.principioAtivo.toLowerCase();
-            return nome.includes(termoMinusculo) || principio.includes(termoMinusculo);
-        }));
-    }
+    const resultadosFuse = fuse.search(termo);
+    const remediosFiltrados = resultadosFuse.length
+        ? resultadosFuse.map(resultado => resultado.item)
+        : produtosAtuais;
 
     loader.classList.add('hidden');
     renderizarResultados(remediosFiltrados);
 }
 
-
-// 4. RENDERIZAR OS RESULTADOS NO HTML
 function renderizarResultados(remedios) {
-    listaProdutos.innerHTML = ''; // Limpa os resultados anteriores
+    listaProdutos.innerHTML = '';
 
     if (remedios.length === 0) {
         mostrarErro();
@@ -95,21 +97,24 @@ function renderizarResultados(remedios) {
     mensagemErro.classList.add('hidden');
     listaProdutos.classList.remove('hidden');
 
-    // Cria os elementos HTML para cada remédio encontrado
     remedios.forEach(remedio => {
         const li = document.createElement('li');
-        
+
         li.innerHTML = `
-            <span class="med-title">${remedio.nome}</span>
+            <span class="med-title">${remedio.nome || 'Sem nome'}</span>
             <div class="med-detalhes">
-                <span><strong>Princípio Ativo:</strong> ${remedio.principioAtivo}</span> | 
-                <span><strong>Empresa:</strong> ${remedio.razaoSocial}</span>
+                <span><strong>Princípio Ativo:</strong> ${remedio.principioAtivo || 'Não informado'}</span> |
+                <span><strong>Empresa:</strong> ${remedio.razaoSocial || 'Não informado'}</span>
             </div>
         `;
 
-        // Evento de clique no remédio da lista
         li.addEventListener('click', () => {
-            alert(`Você selecionou: ${remedio.nome}`);
+            const dados = remedio.raw;
+            const detalhe = `Nome: ${remedio.nome || 'N/A'}\n` +
+                `Princípio Ativo: ${remedio.principioAtivo || 'N/A'}\n` +
+                `Empresa: ${remedio.razaoSocial || 'N/A'}\n` +
+                `NDC: ${dados.openfda?.product_ndc?.[0] || 'N/A'}`;
+            alert(detalhe);
         });
 
         listaProdutos.appendChild(li);
@@ -125,4 +130,28 @@ function esconderElementos() {
     listaProdutos.classList.add('hidden');
     mensagemErro.classList.add('hidden');
     loader.classList.add('hidden');
+}
+
+function getNome(item) {
+    return item.openfda?.brand_name?.[0]
+        || item.openfda?.generic_name?.[0]
+        || item.openfda?.manufacturer_name?.[0]
+        || item.openfda?.nome_da_marca?.[0]
+        || item.nome
+        || '';
+}
+
+function getPrincipioAtivo(item) {
+    return item.openfda?.substance_name?.[0]
+        || item.openfda?.nome_da_substância?.[0]
+        || item.ingrediente_ativo?.[0]
+        || item.ingrediente_inativo?.[0]
+        || '';
+}
+
+function getFabricante(item) {
+    return item.openfda?.manufacturer_name?.[0]
+        || item.openfda?.nome_do_fabricante?.[0]
+        || item.razaoSocial
+        || '';
 }

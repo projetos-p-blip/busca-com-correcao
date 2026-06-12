@@ -3,23 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador de Medicamentos ANVISA</title>
+    <title>Busca de Medicamentos openFDA</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div class="search-container">
-        <h2>Busca Inteligente de Medicamentos</h2>
-        <p>Digite o nome do remédio ou princípio ativo (ex: Dipirona, Paracetamol)</p>
-        
+        <h2>Busca de Medicamentos</h2>
+        <p>Busque pelo nome, princípio ativo ou fabricante.</p>
+
         <div class="input-wrapper">
-            <input type="text" id="inputBusca" placeholder="Comece a digitar para pesquisar..." autocomplete="off">
+            <input type="text" id="inputBusca" placeholder="Digite aqui..." autocomplete="off">
             <div id="loader" class="loader hidden"></div>
         </div>
 
-        <ul id="listaProdutos" class="hidden">
-            </ul>
-        
+        <ul id="listaProdutos" class="hidden"></ul>
         <div id="mensagemErro" class="mensagem hidden">Nenhum medicamento encontrado.</div>
     </div>
 
