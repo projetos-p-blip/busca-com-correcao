@@ -7,9 +7,10 @@ const listaProdutos = document.getElementById('listaProdutos');
 const loader = document.getElementById('loader');
 const mensagemErro = document.getElementById('mensagemErro');
 
-const OPENFDA_URL = 'https://api.fda.gov/drug/label.json';
-const LIMITE_RESULTADOS = 20;
+const DADOS_LOCAL = '../convertcsv.json';
+const LIMITE_RESULTADOS = 100;
 
+window.addEventListener('DOMContentLoaded', carregarDadosLocais);
 inputBusca.addEventListener('input', (evento) => {
     clearTimeout(tempoEspera);
 
@@ -24,60 +25,43 @@ inputBusca.addEventListener('input', (evento) => {
     mensagemErro.classList.add('hidden');
 
     tempoEspera = setTimeout(() => {
-        buscarOpenFda(termoDigitado);
+        buscarLocal(termoDigitado);
     }, 300);
 });
 
-async function buscarOpenFda(termo) {
-    const query = `openfda.brand_name:\"${termo}\" OR openfda.generic_name:\"${termo}\" OR openfda.manufacturer_name:\"${termo}\"`;
-    const url = `${OPENFDA_URL}?search=${encodeURIComponent(query)}&limit=${LIMITE_RESULTADOS}`;
-
+async function carregarDadosLocais() {
     try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Erro ao buscar dados do openFDA.');
+        const response = await fetch(DADOS_LOCAL);
+        if (!response.ok) throw new Error('Erro ao carregar convertcsv.json');
 
         const dados = await response.json();
-        const resultados = Array.isArray(dados.results)
-            ? dados.results
-            : Array.isArray(dados.resultados)
-                ? dados.resultados
-                : [];
-
-        produtosAtuais = resultados
-            .map(item => ({
-                nome: getNome(item),
-                principioAtivo: getPrincipioAtivo(item),
-                razaoSocial: getFabricante(item),
-                raw: item
-            }))
-            .filter(produto => produto.nome || produto.principioAtivo);
+        produtosAtuais = Array.isArray(dados)
+            ? dados.filter(item => item && item.A && item.A !== 'Nome do Produto')
+            : [];
 
         if (!produtosAtuais.length) {
-            loader.classList.add('hidden');
-            mostrarErro();
+            mensagemErro.textContent = 'Nenhum dado válido encontrado em convertcsv.json.';
+            mensagemErro.classList.remove('hidden');
             return;
         }
 
         fuse = new Fuse(produtosAtuais, {
-            keys: ['nome', 'principioAtivo', 'razaoSocial'],
+            keys: ['A', 'B', 'C', 'G', 'D', 'E', 'H', 'I'],
             threshold: 0.4,
             minMatchCharLength: 2,
             includeScore: true
         });
-
-        executarBuscaFuzzy(termo);
     } catch (erro) {
-        console.error('Erro ao buscar openFDA:', erro);
-        loader.classList.add('hidden');
-        mensagemErro.textContent = 'Não foi possível buscar os dados. Tente novamente.';
+        console.error('Erro ao carregar dados locais:', erro);
+        mensagemErro.textContent = 'Não foi possível carregar os dados locais. Verifique se convertcsv.json está disponível.';
         mensagemErro.classList.remove('hidden');
     }
 }
 
-function executarBuscaFuzzy(termo) {
+function buscarLocal(termo) {
     if (!fuse || !produtosAtuais.length) {
         loader.classList.add('hidden');
-        mostrarErro();
+        mostrarErro('Dados não carregados.');
         return;
     }
 
@@ -87,14 +71,14 @@ function executarBuscaFuzzy(termo) {
         : produtosAtuais;
 
     loader.classList.add('hidden');
-    renderizarResultados(remediosFiltrados);
+    renderizarResultados(remediosFiltrados.slice(0, LIMITE_RESULTADOS));
 }
 
 function renderizarResultados(remedios) {
     listaProdutos.innerHTML = '';
 
     if (remedios.length === 0) {
-        mostrarErro();
+        mostrarErro('Nenhum medicamento encontrado.');
         return;
     }
 
@@ -103,30 +87,44 @@ function renderizarResultados(remedios) {
 
     remedios.forEach(remedio => {
         const li = document.createElement('li');
+        const nomeCompleto = `${remedio.A || ''}${remedio.B ? ' - ' + remedio.B : ''}`.trim();
 
         li.innerHTML = `
-            <span class="med-title">${remedio.nome || 'Sem nome'}</span>
+            <span class="med-title">${nomeCompleto || 'Sem nome'}</span>
             <div class="med-detalhes">
-                <span><strong>Princípio Ativo:</strong> ${remedio.principioAtivo || 'Não informado'}</span> |
-                <span><strong>Empresa:</strong> ${remedio.razaoSocial || 'Não informado'}</span>
+                <span><strong>Princípio Ativo:</strong> ${remedio.C || 'Não informado'}</span> |
+                <span><strong>Empresa:</strong> ${remedio.G || 'Não informado'}</span>
+            </div>
+            <div class="med-detalhes">
+                <span><strong>Tipo de Regularização:</strong> ${remedio.D || 'N/A'}</span> |
+                <span><strong>Nº Regularização:</strong> ${remedio.E || 'N/A'}</span>
+            </div>
+            <div class="med-detalhes">
+                <span><strong>Processo:</strong> ${remedio.F || 'N/A'}</span> |
+                <span><strong>Vencimento:</strong> ${remedio.I || 'N/A'}</span>
             </div>
         `;
 
         li.addEventListener('click', () => {
-            const dados = remedio.raw;
-            const detalhe = `Nome: ${remedio.nome || 'N/A'}\n` +
-                `Princípio Ativo: ${remedio.principioAtivo || 'N/A'}\n` +
-                `Empresa: ${remedio.razaoSocial || 'N/A'}\n` +
-                `NDC: ${dados.openfda?.product_ndc?.[0] || 'N/A'}`;
-            alert(detalhe);
+            alert(
+                `Nome: ${nomeCompleto || 'N/A'}\n` +
+                `Princípio Ativo: ${remedio.C || 'N/A'}\n` +
+                `Empresa: ${remedio.G || 'N/A'}\n` +
+                `Tipo de Regularização: ${remedio.D || 'N/A'}\n` +
+                `Nº Regularização: ${remedio.E || 'N/A'}\n` +
+                `Processo: ${remedio.F || 'N/A'}\n` +
+                `Situação: ${remedio.H || 'N/A'}\n` +
+                `Vencimento: ${remedio.I || 'N/A'}`
+            );
         });
 
         listaProdutos.appendChild(li);
     });
 }
 
-function mostrarErro() {
+function mostrarErro(texto = 'Nenhum medicamento encontrado.') {
     listaProdutos.classList.add('hidden');
+    mensagemErro.textContent = texto;
     mensagemErro.classList.remove('hidden');
 }
 
@@ -134,28 +132,4 @@ function esconderElementos() {
     listaProdutos.classList.add('hidden');
     mensagemErro.classList.add('hidden');
     loader.classList.add('hidden');
-}
-
-function getNome(item) {
-    return item.openfda?.brand_name?.[0]
-        || item.openfda?.generic_name?.[0]
-        || item.openfda?.manufacturer_name?.[0]
-        || item.openfda?.nome_da_marca?.[0]
-        || item.nome
-        || '';
-}
-
-function getPrincipioAtivo(item) {
-    return item.openfda?.substance_name?.[0]
-        || item.openfda?.nome_da_substância?.[0]
-        || item.ingrediente_ativo?.[0]
-        || item.ingrediente_inativo?.[0]
-        || '';
-}
-
-function getFabricante(item) {
-    return item.openfda?.manufacturer_name?.[0]
-        || item.openfda?.nome_do_fabricante?.[0]
-        || item.razaoSocial
-        || '';
 }
