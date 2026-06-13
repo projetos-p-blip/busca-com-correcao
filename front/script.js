@@ -37,7 +37,11 @@ async function buscarOpenFda(termo) {
         if (!response.ok) throw new Error('Erro ao buscar dados do openFDA.');
 
         const dados = await response.json();
-        const resultados = Array.isArray(dados.results) ? dados.results : [];
+        const resultados = Array.isArray(dados.results)
+            ? dados.results
+            : Array.isArray(dados.resultados)
+                ? dados.resultados
+                : [];
 
         produtosAtuais = resultados
             .map(item => ({
