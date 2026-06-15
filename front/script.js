@@ -1,19 +1,21 @@
 let tempoEspera;
-let fuse;
 let produtosAtuais = [];
+let selecionados = [];
 
 const inputBusca = document.getElementById('inputBusca');
 const listaProdutos = document.getElementById('listaProdutos');
-const loader = document.getElementById('loader');
+const listaSelecionados = document.getElementById('listaSelecionados');
 const mensagemErro = document.getElementById('mensagemErro');
+const mensagemVazio = document.getElementById('mensagemVazio');
+const loader = document.getElementById('loader');
 
 const DADOS_LOCAL = '../convertcsv.json';
 const LIMITE_RESULTADOS = 100;
 
 window.addEventListener('DOMContentLoaded', carregarDadosLocais);
+
 inputBusca.addEventListener('input', (evento) => {
     clearTimeout(tempoEspera);
-
     const termoDigitado = evento.target.value.trim();
 
     if (termoDigitado.length === 0) {
@@ -40,44 +42,30 @@ async function carregarDadosLocais() {
             : [];
 
         if (!produtosAtuais.length) {
-            mensagemErro.textContent = 'Nenhum dado válido encontrado em convertcsv.json.';
-            mensagemErro.classList.remove('hidden');
+            mostrarErro('Nenhum dado válido encontrado em convertcsv.json.');
             return;
         }
-
-        fuse = new Fuse(produtosAtuais, {
-            keys: ['A', 'B', 'C', 'G', 'D', 'E', 'H', 'I'],
-            threshold: 0.4,
-            minMatchCharLength: 2,
-            includeScore: true
-        });
     } catch (erro) {
         console.error('Erro ao carregar dados locais:', erro);
-        mensagemErro.textContent = 'Não foi possível carregar os dados locais. Verifique se convertcsv.json está disponível.';
-        mensagemErro.classList.remove('hidden');
+        mostrarErro('Não foi possível carregar os dados locais. Verifique se convertcsv.json está disponível.');
     }
 }
 
 function buscarLocal(termo) {
-    if (!fuse || !produtosAtuais.length) {
-        loader.classList.add('hidden');
-        mostrarErro('Dados não carregados.');
-        return;
-    }
-
-    const resultadosFuse = fuse.search(termo);
-    const remediosFiltrados = resultadosFuse.length
-        ? resultadosFuse.map(resultado => resultado.item)
-        : produtosAtuais;
+    const termoLower = termo.toLowerCase();
+    const resultados = produtosAtuais.filter(item => {
+        const campos = [item.A, item.B, item.C, item.G, item.D, item.E, item.H, item.I];
+        return campos.some(campo => campo && campo.toString().toLowerCase().includes(termoLower));
+    });
 
     loader.classList.add('hidden');
-    renderizarResultados(remediosFiltrados.slice(0, LIMITE_RESULTADOS));
+    renderizarResultados(resultados.slice(0, LIMITE_RESULTADOS));
 }
 
 function renderizarResultados(remedios) {
     listaProdutos.innerHTML = '';
 
-    if (remedios.length === 0) {
+    if (!remedios.length) {
         mostrarErro('Nenhum medicamento encontrado.');
         return;
     }
@@ -88,37 +76,128 @@ function renderizarResultados(remedios) {
     remedios.forEach(remedio => {
         const li = document.createElement('li');
         const nomeCompleto = `${remedio.A || ''}${remedio.B ? ' - ' + remedio.B : ''}`.trim();
+        
+        if (remedio.H === "ativo"){
+            lis.classList.add('ativo');
+        } else if (remedio.H === "inativo"){
+            li.classList.add('inativo');
+        }
 
+        li.classList.add(getStatusClass(remedio.H));
         li.innerHTML = `
             <span class="med-title">${nomeCompleto || 'Sem nome'}</span>
-            <div class="med-detalhes">
-                <span><strong>Princípio Ativo:</strong> ${remedio.C || 'Não informado'}</span> |
-                <span><strong>Empresa:</strong> ${remedio.G || 'Não informado'}</span>
-            </div>
-            <div class="med-detalhes">
-                <span><strong>Tipo de Regularização:</strong> ${remedio.D || 'N/A'}</span> |
-                <span><strong>Nº Regularização:</strong> ${remedio.E || 'N/A'}</span>
-            </div>
-            <div class="med-detalhes">
-                <span><strong>Processo:</strong> ${remedio.F || 'N/A'}</span> |
-                <span><strong>Vencimento:</strong> ${remedio.I || 'N/A'}</span>
-            </div>
+            <div class="med-detalhes"><strong>Princípio Ativo:</strong> ${remedio.C || 'Não informado'}</div>
+            <div class="med-detalhes"><strong>Empresa:</strong> ${remedio.G || 'Não informado'}</div>
         `;
 
         li.addEventListener('click', () => {
-            alert(
-                `Nome: ${nomeCompleto || 'N/A'}\n` +
-                `Princípio Ativo: ${remedio.C || 'N/A'}\n` +
-                `Empresa: ${remedio.G || 'N/A'}\n` +
-                `Tipo de Regularização: ${remedio.D || 'N/A'}\n` +
-                `Nº Regularização: ${remedio.E || 'N/A'}\n` +
-                `Processo: ${remedio.F || 'N/A'}\n` +
-                `Situação: ${remedio.H || 'N/A'}\n` +
-                `Vencimento: ${remedio.I || 'N/A'}`
-            );
+            abrirModal(remedio, nomeCompleto);
         });
 
         listaProdutos.appendChild(li);
+    });
+}
+
+function getStatusClass(status) {
+    if (!status) return 'desconhecido';
+    const valor = status.toString().toLowerCase();
+    if (valor.includes('ativo')) return 'ativo';
+    if (valor.includes('inativo')) return 'inativo';
+    return 'desconhecido';
+}
+
+function abrirModal(remedio, nomeCompleto) {
+    const jaSelecionado = selecionados.some(item => item.A === remedio.A && item.E === remedio.E);
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <button class="modal-close" type="button" aria-label="Fechar">×</button>
+            <h2>${nomeCompleto || 'Nome indisponível'}</h2>
+            <p><strong>Princípio Ativo:</strong> ${remedio.C || 'Não informado'}</p>
+            <p><strong>Empresa:</strong> ${remedio.G || 'Não informado'}</p>
+            <p><strong>Tipo de Regularização:</strong> ${remedio.D || 'N/A'}</p>
+            <p><strong>Nº Regularização:</strong> ${remedio.E || 'N/A'}</p>
+            <p><strong>Processo:</strong> ${remedio.F || 'N/A'}</p>
+            <p><strong>Situação:</strong> ${remedio.H || 'N/A'}</p>
+            <p><strong>Vencimento:</strong> ${remedio.I || 'N/A'}</p>
+            <div class="modal-button-container">
+                <button class="btn-adicionar-modal" ${jaSelecionado ? 'disabled' : ''}>${jaSelecionado ? '✓ Adicionado' : 'Adicionar'}</button>
+                <button class="btn-fechar-modal" type="button">Fechar</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const btnAdicionar = modal.querySelector('.btn-adicionar-modal');
+    const btnFechar = modal.querySelector('.btn-fechar-modal');
+    const btnClose = modal.querySelector('.modal-close');
+
+    function fecharModal() {
+        modal.classList.remove('show');
+        setTimeout(() => modal.remove(), 250);
+    }
+
+    if (!jaSelecionado) {
+        btnAdicionar.addEventListener('click', () => {
+            adicionarSelecionado(remedio);
+            fecharModal();
+        });
+    }
+
+    btnFechar.addEventListener('click', fecharModal);
+    btnClose.addEventListener('click', fecharModal);
+
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            fecharModal();
+        }
+    });
+}
+
+function adicionarSelecionado(remedio) {
+    const jaSelecionado = selecionados.some(item => item.A === remedio.A && item.E === remedio.E);
+    if (jaSelecionado) return;
+
+    selecionados.push(remedio);
+    renderizarSelecionados();
+}
+
+function removerSelecionado(index) {
+    selecionados.splice(index, 1);
+    renderizarSelecionados();
+}
+
+function renderizarSelecionados() {
+    listaSelecionados.innerHTML = '';
+
+    if (selecionados.length === 0) {
+        mensagemVazio.classList.remove('hidden');
+        return;
+    }
+
+    mensagemVazio.classList.add('hidden');
+
+    selecionados.forEach((remedio, index) => {
+        const nomeCompleto = `${remedio.A || ''}${remedio.B ? ' - ' + remedio.B : ''}`.trim();
+        const li = document.createElement('li');
+
+        li.innerHTML = `
+            <div class="selected-item-info">
+                <span class="med-title">${nomeCompleto || 'Sem nome'}</span>
+                <div class="med-detalhes"><strong>Princípio Ativo:</strong> ${remedio.C || 'Não informado'}</div>
+                <div class="med-detalhes"><strong>Empresa:</strong> ${remedio.G || 'Não informado'}</div>
+            </div>
+            <button class="btn-remover" type="button">Remover</button>
+        `;
+
+        li.querySelector('.btn-remover').addEventListener('click', () => {
+            removerSelecionado(index);
+        });
+
+        listaSelecionados.appendChild(li);
     });
 }
 

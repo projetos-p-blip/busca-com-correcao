@@ -3,24 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Busca de Medicamentos openFDA</title>
+    <title>Busca de Medicamentos</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="search-container">
-        <h2>Busca de Medicamentos</h2>
-        <p>Busque pelo nome, princípio ativo ou fabricante.</p>
+    <div class="main-container">
+        <section class="search-container">
+            <div class="search-header">
+                <div>
+                    <h2>Busca de Medicamentos</h2>
+                    <p>Busque pelo nome, princípio ativo ou fabricante.</p>
+                </div>
+            </div>
 
-        <div class="input-wrapper">
-            <input type="text" id="inputBusca" placeholder="Digite aqui..." autocomplete="off">
-            <div id="loader" class="loader hidden"></div>
-        </div>
+            <div class="input-wrapper">
+                <input type="text" id="inputBusca" placeholder="Digite aqui..." autocomplete="off">
+                <div id="loader" class="loader hidden"></div>
+            </div>
 
-        <ul id="listaProdutos" class="hidden"></ul>
-        <div id="mensagemErro" class="mensagem hidden">Nenhum medicamento encontrado.</div>
+            <ul id="listaProdutos" class="result-list hidden"></ul>
+            <p id="mensagemErro" class="mensagem hidden">Nenhum medicamento encontrado.</p>
+        </section>
+
+        <aside class="selected-container">
+            <h3>Medicamentos Selecionados</h3>
+            <p class="selected-subtitle">Os medicamentos adicionados aparecerão aqui.</p>
+            <ul id="listaSelecionados" class="selected-list"></ul>
+            <p id="mensagemVazio" class="mensagem-vazio">Nenhum medicamento selecionado.</p>
+        </aside>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
