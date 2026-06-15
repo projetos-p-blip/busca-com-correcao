@@ -78,7 +78,7 @@ function renderizarResultados(remedios) {
         const nomeCompleto = `${remedio.A || ''}${remedio.B ? ' - ' + remedio.B : ''}`.trim();
         
         if (remedio.H === "ativo"){
-            lis.classList.add('ativo');
+            remedio.H.classList.add('ativo');
         } else if (remedio.H === "inativo"){
             li.classList.add('inativo');
         }
