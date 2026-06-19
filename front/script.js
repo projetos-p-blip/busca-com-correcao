@@ -51,12 +51,19 @@ async function carregarDadosLocais() {
     }
 }
 
+// ALTERADO: Agora utiliza a biblioteca Fuse.js para a busca aproximada (Fuzzy)
 function buscarLocal(termo) {
-    const termoLower = termo.toLowerCase();
-    const resultados = produtosAtuais.filter(item => {
-        const campos = [item.A, item.B, item.C, item.G, item.D, item.E, item.H, item.I];
-        return campos.some(campo => campo && campo.toString().toLowerCase().includes(termoLower));
-    });
+    const opcoesFuse = {
+        keys: ['A', 'B', 'C', 'G', 'D', 'E', 'H', 'I'], // Campos onde a busca será feita
+        threshold: 0.3, // Controla a precisão (0.0 = match perfeito, 1.0 = aceita qualquer coisa)
+        ignoreLocation: true // Ignora onde a palavra correspondente começa no texto
+    };
+
+    const fuse = new Fuse(produtosAtuais, opcoesFuse);
+    const resultadoFuzzy = fuse.search(termo);
+
+    // O Fuse.js envelopa os resultados dentro de um objeto. Mapeamos de volta para a estrutura original.
+    const resultados = resultadoFuzzy.map(resultado => resultado.item);
 
     loader.classList.add('hidden');
     renderizarResultados(resultados.slice(0, LIMITE_RESULTADOS));
@@ -77,13 +84,10 @@ function renderizarResultados(remedios) {
         const li = document.createElement('li');
         const nomeCompleto = `${remedio.A || ''}${remedio.B ? ' - ' + remedio.B : ''}`.trim();
         
-        if (remedio.H === "ativo"){
-            remedio.H.classList.add('ativo');
-        } else if (remedio.H === "inativo"){
-            li.classList.add('inativo');
-        }
-
+        // CORREÇÃO: Removido o bloco if/else com erro que tentava aplicar classList diretamente na string remedio.H
+        // A linha abaixo já faz essa injeção de classe dinamicamente e de forma segura
         li.classList.add(getStatusClass(remedio.H));
+
         li.innerHTML = `
             <span class="med-title">${nomeCompleto || 'Sem nome'}</span>
             <div class="med-detalhes"><strong>Princípio Ativo:</strong> ${remedio.C || 'Não informado'}</div>
